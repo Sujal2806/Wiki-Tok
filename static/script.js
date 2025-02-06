@@ -1,42 +1,54 @@
 document.addEventListener("DOMContentLoaded", () => {
-    let loading = false;
-    let queue = ["Python_(programming_language)"];
+    let tabCount = 0;
 
-    async function fetchArticle(topic) {
-        if (loading) return;
-        loading = true;
+    document.getElementById("searchBtn").addEventListener("click", function () {
+        const topic = document.getElementById("searchInput").value.trim();
+        if (topic) {
+            fetchArticle(topic.replace(/ /g, "_"));
+        }
+    });
+});
 
-        const response = await fetch(`/get_article?topic=${topic}`);
+async function fetchArticle(topic) {
+    try {
+        const response = await fetch(`/get_article?topic=${encodeURIComponent(topic)}`);
         const data = await response.json();
-        
+
         if (data.error) {
-            console.error("Error loading article:", data.error);
+            alert("Error: " + data.error);
             return;
         }
 
-        const contentDiv = document.getElementById("content");
-
-        let articleDiv = document.createElement("div");
-        articleDiv.classList.add("article");
-        articleDiv.innerHTML = `<h2>${data.title}</h2><p>${data.extract}</p>`;
-        contentDiv.appendChild(articleDiv);
-
-        data.links.forEach(link => {
-            let linkBtn = document.createElement("button");
-            linkBtn.innerText = link;
-            linkBtn.classList.add("wiki-link");
-            linkBtn.onclick = () => queue.push(link.replace(/ /g, "_"));
-            contentDiv.appendChild(linkBtn);
-        });
-
-        loading = false;
+        addTab(data.title, data.extract, data.page_url);
+    } catch (error) {
+        console.error("Failed to fetch article:", error);
+        alert("Failed to load article. Check console.");
     }
+}
 
-    window.addEventListener("scroll", () => {
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
-            if (queue.length > 0) fetchArticle(queue.shift());
-        }
-    });
+function addTab(title, extract, url) {
+    tabCount++;
+    const tabId = `tab${tabCount}`;
+    const articleTabs = document.getElementById("articleTabs");
+    const articleContent = document.getElementById("articleContent");
 
-    fetchArticle(queue.shift());
-});
+    // Add new tab
+    let newTab = document.createElement("li");
+    newTab.classList.add("nav-item");
+    newTab.innerHTML = `
+        <button class="nav-link ${tabCount === 1 ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#${tabId}">${title}</button>
+    `;
+    articleTabs.appendChild(newTab);
+
+    // Add content for the tab
+    let tabPane = document.createElement("div");
+    tabPane.classList.add("tab-pane", "fade", tabCount === 1 ? "show", "active" : "");
+    tabPane.id = tabId;
+    tabPane.innerHTML = `
+        <div class="p-3">
+            <h2><a href="${url}" target="_blank">${title}</a></h2>
+            <p>${extract}</p>
+        </div>
+    `;
+    articleContent.appendChild(tabPane);
+}
